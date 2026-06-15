@@ -1,6 +1,6 @@
 # Sistema Bancário — Microsserviços (.NET 8)
 
-Conversão do projeto Node.js para C# ASP.NET Core Web API com arquitetura de microsserviços.
+C# ASP.NET Core Web API com arquitetura de microsserviços.
 
 ## Serviços
 
