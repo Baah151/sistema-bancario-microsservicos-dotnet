@@ -1,0 +1,189 @@
+### ============================================================
+### TESTES REST — Sistema Bancário Microsserviços (.NET 8)
+### Use com a extensão REST Client (VS Code)
+### ============================================================
+
+### Variáveis — preencha os IDs após criar as contas
+@contaAnaId  = COLOQUE_AQUI_O_ID_DA_ANA
+@contaJoaoId = COLOQUE_AQUI_O_ID_DO_JOAO
+
+@ms_contas       = http://localhost:5001
+@ms_transacoes   = http://localhost:5002
+@ms_notificacoes = http://localhost:5003
+
+
+### ══════════════════════════════════════
+### 1. HEALTH CHECKS
+### ══════════════════════════════════════
+
+### MS-Contas online?
+GET {{ms_contas}}/health
+
+###
+
+### MS-Transacoes online?
+GET {{ms_transacoes}}/health
+
+###
+
+### MS-Notificacoes online?
+GET {{ms_notificacoes}}/health
+
+###
+
+
+### ══════════════════════════════════════
+### 2. CONTAS — MS-CONTAS (5001)
+### ══════════════════════════════════════
+
+### Criar conta da Ana (com saldo inicial)
+POST {{ms_contas}}/contas
+Content-Type: application/json
+
+{
+  "titular": "Ana Silva",
+  "cpf": "111.111.111-11",
+  "email": "ana@email.com",
+  "saldoInicial": 500
+}
+
+###
+
+### Criar conta do João (sem saldo inicial)
+POST {{ms_contas}}/contas
+Content-Type: application/json
+
+{
+  "titular": "João Costa",
+  "cpf": "222.222.222-22",
+  "email": "joao@email.com"
+}
+
+###
+
+### Buscar dados da conta da Ana
+GET {{ms_contas}}/contas/{{contaAnaId}}
+
+###
+
+### Consultar saldo da Ana
+GET {{ms_contas}}/contas/{{contaAnaId}}/saldo
+
+###
+
+### Encerrar conta (só funciona com saldo zerado)
+DELETE {{ms_contas}}/contas/{{contaAnaId}}
+
+###
+
+
+### ══════════════════════════════════════
+### 3. TRANSAÇÕES — MS-TRANSACOES (5002)
+### ══════════════════════════════════════
+
+### Depositar R$200 na conta do João
+POST {{ms_transacoes}}/transacoes/deposito
+Content-Type: application/json
+
+{
+  "contaId": "{{contaJoaoId}}",
+  "valor": 200,
+  "descricao": "Depósito inicial"
+}
+
+###
+
+### Sacar R$100 da conta da Ana
+POST {{ms_transacoes}}/transacoes/saque
+Content-Type: application/json
+
+{
+  "contaId": "{{contaAnaId}}",
+  "valor": 100
+}
+
+###
+
+### Transferir R$150 da Ana para João
+POST {{ms_transacoes}}/transacoes/transferencia
+Content-Type: application/json
+
+{
+  "contaOrigemId": "{{contaAnaId}}",
+  "contaDestinoId": "{{contaJoaoId}}",
+  "valor": 150,
+  "descricao": "Pagamento de aluguel"
+}
+
+###
+
+### Extrato da conta da Ana (últimas 20 transações)
+GET {{ms_transacoes}}/transacoes/{{contaAnaId}}
+
+###
+
+### Extrato do João com limite de 5
+GET {{ms_transacoes}}/transacoes/{{contaJoaoId}}?limite=5
+
+###
+
+
+### ══════════════════════════════════════
+### 4. NOTIFICAÇÕES — MS-NOTIFICACOES (5003)
+### ══════════════════════════════════════
+
+### Histórico de notificações da Ana
+GET {{ms_notificacoes}}/notificacoes/{{contaAnaId}}
+
+###
+
+### Histórico de notificações do João
+GET {{ms_notificacoes}}/notificacoes/{{contaJoaoId}}
+
+###
+
+### Todas as notificações (debug)
+GET {{ms_notificacoes}}/notificacoes
+
+###
+
+### Enviar notificação manual (teste direto)
+POST {{ms_notificacoes}}/notificacoes/enviar
+Content-Type: application/json
+
+{
+  "contaId": "{{contaAnaId}}",
+  "email": "ana@email.com",
+  "titulo": "Teste manual",
+  "mensagem": "Esta é uma notificação de teste enviada diretamente"
+}
+
+### Criar nova conta
+POST {{ms_contas}}/contas
+Content-Type: application/json
+
+{
+  "titular": "Bruno Teste",
+  "cpf": "333.333.333-33",
+  "email": "seuemail@email.com",
+  "saldoInicial": 10000
+}
+### Consultar conta do Bruno
+GET {{ms_contas}}/contas/91acddf4-c23a-42a4-ba7e-d247dcc29867
+
+### Transferência Bruno -> Ana
+POST {{ms_transacoes}}/transacoes/transferencia
+Content-Type: application/json
+
+{
+  "contaOrigemId": "91acddf4-c23a-42a4-ba7e-d247dcc29867",
+  "contaDestinoId": "b99c9f20-d205-48b5-ac96-879ab4bf8aeb",
+  "valor": 500,
+  "descricao": "Transferência de teste"
+}
+
+### Extrato do Bruno
+GET {{ms_transacoes}}/transacoes/91acddf4-c23a-42a4-ba7e-d247dcc29867
+
+### Notificações do Bruno
+GET {{ms_notificacoes}}/notificacoes/91acddf4-c23a-42a4-ba7e-d247dcc29867
