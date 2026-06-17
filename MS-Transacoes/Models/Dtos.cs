@@ -7,3 +7,4 @@ public record TransferenciaRequest(Guid ContaOrigemId, Guid ContaDestinoId, deci
 // Resposta de consulta de conta do MS-Contas
 public record ContaResponse(Guid Id, string Titular, string Email, decimal Saldo, bool Ativa);
 public record SaldoResponse(Guid ContaId, decimal NovoSaldo);
+public record SaldoAtualResponse(Guid ContaId, decimal Saldo);

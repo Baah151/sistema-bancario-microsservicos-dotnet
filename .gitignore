@@ -1,0 +1,19 @@
+# Build
+bin/
+obj/
+
+# Bancos de dados locais (recriados automaticamente)
+*.db
+*.db-shm
+*.db-wal
+
+# Visual Studio
+.vs/
+*.user
+
+# Rider
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

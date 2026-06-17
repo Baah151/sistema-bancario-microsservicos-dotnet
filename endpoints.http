@@ -187,3 +187,238 @@ GET {{ms_transacoes}}/transacoes/91acddf4-c23a-42a4-ba7e-d247dcc29867
 
 ### Notificações do Bruno
 GET {{ms_notificacoes}}/notificacoes/91acddf4-c23a-42a4-ba7e-d247dcc29867
+
+### Criar nova conta
+POST {{ms_contas}}/contas
+Content-Type: application/json
+
+{
+  "titular": "Brunoooo Teste",
+  "cpf": "323.333.333-33",
+  "email": "seuemail@email.com",
+  "saldoInicial": 1001
+}
+
+### Transferência Bruno -> Ana
+POST {{ms_transacoes}}/transacoes/transferencia
+Content-Type: application/json
+
+{
+  "contaOrigemId": "91acddf4-c23a-42a4-ba7e-d247dcc29867",
+  "contaDestinoId": "b99c9f20-d205-48b5-ac96-879ab4bf8aeb",
+  "valor": 500,
+  "descricao": "Transferência de teste"
+}
+
+### Consultar saldo da Ana
+GET {{ms_contas}}/contas/b99c9f20-d205-48b5-ac96-879ab4bf8aeb/saldo
+
+### Transferência Ana -> Bruno
+POST {{ms_transacoes}}/transacoes/transferencia
+Content-Type: application/json
+
+{
+  "contaOrigemId": "b99c9f20-d205-48b5-ac96-879ab4bf8aeb",
+  "contaDestinoId": "91acddf4-c23a-42a4-ba7e-d247dcc29867",
+  "valor": 1500,
+  "descricao": "Transferência Ana para Bruno"
+}
+
+### Consultar conta da Ana
+GET {{ms_contas}}/contas/b99c9f20-d205-48b5-ac96-879ab4bf8aeb
+
+### Consultar conta da Ana
+GET {{ms_contas}}/contas/b99c9f20-d205-48b5-ac96-879ab4bf8aeb
+
+POST {{ms_transacoes}}/transacoes/transferencia
+Content-Type: application/json
+
+{
+  "contaOrigemId": "91acddf4-c23a-42a4-ba7e-d247dcc29867",
+  "contaDestinoId": "b99c9f20-d205-48b5-ac96-879ab4bf8aeb",
+  "valor": 100,
+  "descricao": "Transferência Bruno para Ana"
+}
+
+### ══════════════════════════════════════════════════════════
+### 5. TESTE DAS 3 CONEXÕES INTER-SERVIÇOS (execute em ordem)
+###
+### ANTES DE COMEÇAR: inicie os 3 serviços e verifique /health
+### OBSERVAR: logs no console de cada serviço após cada passo
+### ══════════════════════════════════════════════════════════
+
+### Variável de suporte para esta seção (preencha após o passo 1)
+@contaTesteId = COLE_AQUI_O_ID_RETORNADO_NO_PASSO_1
+
+
+### ── TRANSFERÊNCIA CONSOLIDADA (atalho — tudo em 1 request) ─
+### Executa transferência + consulta saldo dos dois lados +
+### notifica ambos, tudo em paralelo. Requer contas já criadas.
+###
+POST {{ms_transacoes}}/transacoes/transferencia-consolidada
+Content-Type: application/json
+
+{
+  "contaOrigemId": "{{contaAnaId}}",
+  "contaDestinoId": "{{contaJoaoId}}",
+  "valor": 100,
+  "descricao": "Transferência consolidada de teste"
+}
+
+###
+
+### ── PASSO 1 ─────────────────────────────────────────────
+### Criar conta de teste
+### ► CONEXÃO 1 DISPARADA: MS-Contas → MS-Notificacoes
+###   Esperado no console do MS-Contas:
+###     [MS-CONTAS → MS-NOTIFICACOES] Notificação enviada: Bem-vindo ao Banco!
+###   Esperado no console do MS-Notificacoes:
+###     📧 E-mail enviado | Assunto: Bem-vindo ao Banco!
+###
+POST {{ms_contas}}/contas
+Content-Type: application/json
+
+{
+  "titular": "Carlos Teste",
+  "cpf": "999.888.777-66",
+  "email": "carlos@teste.com",
+  "saldoInicial": 0
+}
+
+###
+
+### ── PASSO 2 ─────────────────────────────────────────────
+### Depositar para gerar uma transação (necessário para o passo 3)
+### (Copie o ID retornado no passo 1 para @contaTesteId acima)
+###
+POST {{ms_transacoes}}/transacoes/deposito
+Content-Type: application/json
+
+{
+  "contaId": "{{contaTesteId}}",
+  "valor": 300,
+  "descricao": "Depósito de teste para conexão 2"
+}
+
+###
+
+### ── PASSO 3 ─────────────────────────────────────────────
+### Buscar dados da conta
+### ► CONEXÃO 2 DISPARADA: MS-Contas → MS-Transacoes
+###   Esperado no console do MS-Contas:
+###     [MS-CONTAS → MS-TRANSACOES] Resumo de transações obtido para conta ...
+###   Esperado na resposta JSON: campo "resumo_transacoes" com:
+###     { "totalTransacoes": 1, "ultimaTransacao": "..." }
+###
+GET {{ms_contas}}/contas/{{contaTesteId}}
+
+###
+
+### ── PASSO 3b ────────────────────────────────────────────
+### Consultar o resumo de transações diretamente (endpoint novo)
+### Permite verificar o dado que é consumido pela Conexão 2
+###
+GET {{ms_transacoes}}/transacoes/{{contaTesteId}}/resumo
+
+###
+
+### ── PASSO 4 ─────────────────────────────────────────────
+### Consultar histórico de notificações da conta de teste
+### ► CONEXÃO 3 DISPARADA: MS-Notificacoes → MS-Contas
+###   Esperado no console do MS-Notificacoes:
+###     [MS-NOTIFICACOES → MS-CONTAS] Titular obtido: Carlos Teste
+###   Esperado na resposta JSON: campo "titular": "Carlos Teste"
+###   e "notificacoes" com a mensagem de boas-vindas do passo 1
+###
+GET {{ms_notificacoes}}/notificacoes/{{contaTesteId}}
+
+###
+
+### ── PASSO 5 ─────────────────────────────────────────────
+### Sacar tudo para zerar o saldo (pré-requisito para encerrar)
+###
+POST {{ms_transacoes}}/transacoes/saque
+Content-Type: application/json
+
+{
+  "contaId": "{{contaTesteId}}",
+  "valor": 300,
+  "descricao": "Saque para zerar saldo antes do encerramento"
+}
+
+###
+
+### ── PASSO 6 ─────────────────────────────────────────────
+### Encerrar a conta
+### ► CONEXÃO 1 DISPARADA NOVAMENTE: MS-Contas → MS-Notificacoes
+###   Esperado no console do MS-Contas:
+###     [MS-CONTAS → MS-NOTIFICACOES] Notificação enviada: Conta encerrada
+###   Esperado no console do MS-Notificacoes:
+###     📧 E-mail enviado | Assunto: Conta encerrada
+###
+DELETE {{ms_contas}}/contas/{{contaTesteId}}
+
+###
+
+### ── VERIFICAÇÃO FINAL ────────────────────────────────────
+### Checar todas as notificações geradas pelo fluxo acima
+### Devem aparecer pelo menos 4 notificações:
+###   1. Boas-vindas (passo 1)     — MS-Contas → MS-Notificacoes
+###   2. Depósito   (passo 2)      — MS-Transacoes → MS-Notificacoes (já existia)
+###   3. Saque      (passo 5)      — MS-Transacoes → MS-Notificacoes (já existia)
+###   4. Encerramento (passo 6)    — MS-Contas → MS-Notificacoes
+###
+GET {{ms_notificacoes}}/notificacoes/{{contaTesteId}}
+
+###
+
+POST {{ms_transacoes}}/transacoes/transferencia-consolidada
+Content-Type: application/json
+
+{
+  "contaOrigemId": "{{contaAnaId}}",
+  "contaDestinoId": "{{contaJoaoId}}",
+  "valor": 100,
+  "descricao": "Transferência consolidada de teste"
+}
+
+POST {{ms_transacoes}}/transacoes/transferencia
+Content-Type: application/json
+
+{
+  "contaOrigemId": "b99c9f20-d205-48b5-ac96-879ab4bf8aeb",
+  "contaDestinoId": "91acddf4-c23a-42a4-ba7e-d247dcc29867",
+  "valor": 50,
+  "descricao": "Teste de comunicação entre microsserviços"
+}
+
+### Saldo da Ana (MS-Contas)
+GET {{ms_contas}}/contas/b99c9f20-d205-48b5-ac96-879ab4bf8aeb/saldo
+
+### Extrato do Bruno (MS-Transacoes)
+GET {{ms_transacoes}}/transacoes/91acddf4-c23a-42a4-ba7e-d247dcc29867
+
+### Notificações da Ana (MS-Notificacoes)
+GET {{ms_notificacoes}}/notificacoes/b99c9f20-d205-48b5-ac96-879ab4bf8aeb
+
+### Transferência Bruno -> Ana
+POST {{ms_transacoes}}/transacoes/transferencia
+Content-Type: application/json
+
+{
+  "contaOrigemId": "91acddf4-c23a-42a4-ba7e-d247dcc29867",
+  "contaDestinoId": "b99c9f20-d205-48b5-ac96-879ab4bf8aeb",
+  "valor": 200,
+  "descricao": "Transferência Bruno para Ana"
+}
+
+### Transferência Bruno -> Ana
+POST {{ms_transacoes}}/transacoes/transferencia
+Content-Type: application/json
+
+{
+  "contaOrigemId": "91acddf4-c23a-42a4-ba7e-d247dcc29867",
+  "contaDestinoId": "b99c9f20-d205-48b5-ac96-879ab4bf8aeb",
+  "valor": 200,
+  "descricao": "Transferência Bruno para Ana"
+}

@@ -16,6 +16,12 @@ builder.Services.AddDbContext<ContasDbContext>(opt =>
 
 builder.Services.AddScoped<ContaService>();
 
+builder.Services.AddHttpClient("MSNotificacoes", client =>
+    client.BaseAddress = new Uri(builder.Configuration["Services:MSNotificacoes"] ?? "http://localhost:5003"));
+
+builder.Services.AddHttpClient("MSTransacoes", client =>
+    client.BaseAddress = new Uri(builder.Configuration["Services:MSTransacoes"] ?? "http://localhost:5002"));
+
 builder.WebHost.UseUrls("http://localhost:5001");
 
 var app = builder.Build();
